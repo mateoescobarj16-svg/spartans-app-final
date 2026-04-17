@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 const START_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776367813/Inicio_hrybba.jpg';
 const LOGIN_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776367812/Login_lbygxb.jpg';
-const TEAM_INFO_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776367821/Gastos_del_Equipo_fitnjt.jpg';
+const TEAM_INFO_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776457249/Gastos_del_Equipo_1_ym60z4.jpg';
 const ICON_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776368629/User_-_Name_cnpjeb.png';
 
 const PLAYER_ACCOUNTS = [
@@ -39,16 +39,19 @@ const ADMIN_USER = {
   position: 'Control general',
 };
 
-function createMonths(monthlyFee) {
-  return [
-    { id: 1, month: 'Mayo', status: 'No pagó', cuota: monthlyFee, faltante: monthlyFee, comprobantes: [] },
-    { id: 2, month: 'Junio', status: 'No pagó', cuota: monthlyFee, faltante: monthlyFee, comprobantes: [] },
-    { id: 3, month: 'Julio', status: 'No pagó', cuota: monthlyFee, faltante: monthlyFee, comprobantes: [] },
-    { id: 4, month: 'Agosto', status: 'No pagó', cuota: monthlyFee, faltante: monthlyFee, comprobantes: [] },
-  ];
+function createMonths(monthlyFee, customMonths) {
+  const baseMonths = customMonths && customMonths.length > 0 ? customMonths : ['Mayo', 'Junio', 'Julio', 'Agosto'];
+  return baseMonths.map((monthName, index) => ({
+    id: index + 1,
+    month: monthName,
+    status: 'No pagó',
+    cuota: monthlyFee,
+    faltante: monthlyFee,
+    comprobantes: [],
+  }));
 }
 
-function createPlayers(monthlyFee) {
+function createPlayers(monthlyFee, customMonths) {
   return PLAYER_ACCOUNTS.map((player) => ({
     username: player.username,
     password: player.password,
@@ -56,22 +59,46 @@ function createPlayers(monthlyFee) {
     name: player.name,
     number: player.number,
     phone: player.phone,
-    months: createMonths(monthlyFee),
+    months: createMonths(monthlyFee, customMonths),
   }));
 }
 
-function createAdminRows(monthlyFee) {
+function createAdminRows(monthlyFee, customMonths) {
+  const baseMonths = customMonths && customMonths.length > 0 ? customMonths : ['Mayo', 'Junio', 'Julio', 'Agosto'];
   return PLAYER_ACCOUNTS.map((player) => ({
     player: '#' + String(player.number) + ' ' + player.name,
     status: 'No pagó',
-    month: 'Mayo',
+    month: baseMonths[0],
     cuota: monthlyFee,
     deuda: monthlyFee,
     msm: false,
     lastMessageDate: '',
     phone: player.phone,
     proofs: [],
+    notifications: [],
   }));
+}
+
+function normalizeUruguayPhone(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+
+  if (!digits) return '';
+  if (digits.startsWith('598')) return digits;
+  if (digits.startsWith('0')) return '598' + digits.slice(1);
+  if (digits.startsWith('9') && digits.length === 8) return '598' + digits;
+
+  return digits;
+}
+
+function displayUruguayPhone(value) {
+  if (!value) return '';
+  const digits = String(value).replace(/\D/g, '');
+
+  if (digits.startsWith('598')) {
+    return '0' + digits.slice(3);
+  }
+
+  return value;
 }
 
 function downloadCsv(filename, headers, rows) {
@@ -221,24 +248,41 @@ function ProfileCard({ name, subtitle }) {
   );
 }
 
-function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, setSessionUser, setRows }) {
+function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, setSessionUser, setRows, notifyAdmin, monthsList }) {
   const s = styles();
   const [months, setMonths] = useState(user.months);
-  const [phone, setPhone] = useState(user.phone || '');
+  const [phone, setPhone] = useState(displayUruguayPhone(user.phone || ''));
 
   useEffect(() => {
-    setMonths((prev) =>
-      prev.map((month) => ({
+    setMonths((prev) => {
+      const existingMap = new Map(prev.map((m) => [m.month, m]));
+      return monthsList.map((monthName, index) => {
+        const existing = existingMap.get(monthName);
+        return existing || {
+          id: index + 1,
+          month: monthName,
+          status: 'No pagó',
+          cuota: monthlyFee,
+          faltante: monthlyFee,
+          comprobantes: [],
+        };
+      }).map((month, index) => ({
         ...month,
+        id: index + 1,
         cuota: monthlyFee,
         faltante: month.status === 'Pago' ? 0 : monthlyFee,
-      }))
-    );
-  }, [monthlyFee]);
+      }));
+    });
+  }, [monthlyFee, monthsList]);
+
+  useEffect(() => {
+    setPhone(displayUruguayPhone(user.phone || ''));
+  }, [user.phone]);
 
   const uploadProof = (monthId, files) => {
     const fileList = Array.from(files || []);
     const names = fileList.map((f) => f.name);
+    const currentMonth = months.find((m) => m.id === monthId);
 
     setMonths((prev) =>
       prev.map((month) => {
@@ -251,6 +295,7 @@ function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, set
       name: file.name,
       url: URL.createObjectURL(file),
       monthId,
+      month: currentMonth ? currentMonth.month : '',
     }));
 
     setRows((prev) =>
@@ -259,6 +304,10 @@ function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, set
         return row.player === expected ? { ...row, proofs: (row.proofs || []).concat(uploadedProofs) } : row;
       })
     );
+
+    if (fileList.length > 0 && currentMonth) {
+      notifyAdmin('Nuevo comprobante subido por ' + user.name + ' - ' + currentMonth.month);
+    }
   };
 
   const openPaymentLink = () => {
@@ -268,13 +317,18 @@ function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, set
   };
 
   const savePhone = () => {
-    setSessionUser((prev) => (prev ? { ...prev, phone } : prev));
+    const normalizedPhone = normalizeUruguayPhone(phone);
+
+    setSessionUser((prev) => (prev ? { ...prev, phone: normalizedPhone } : prev));
+
     setRows((prev) =>
       prev.map((row) => {
         const expected = '#' + String(user.number) + ' ' + user.name;
-        return row.player === expected ? { ...row, phone } : row;
+        return row.player === expected ? { ...row, phone: normalizedPhone } : row;
       })
     );
+
+    setPhone(displayUruguayPhone(normalizedPhone));
   };
 
   return (
@@ -290,7 +344,15 @@ function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, set
         <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
           <div>
             <div style={{ marginBottom: 6, fontSize: 12, fontWeight: 700, color: '#d4d4d8' }}>Tu WhatsApp</div>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="5989XXXXXXX" style={s.smallInput} />
+            <input
+              value={phone}
+              onChange={(e) => {
+                const cleaned = e.target.value.replace(/[^\d\s-]/g, '');
+                setPhone(cleaned);
+              }}
+              placeholder="09XXXXXXXX"
+              style={s.smallInput}
+            />
           </div>
           <div style={s.row2}>
             <button onClick={savePhone} style={s.btnWhite}>Guardar</button>
@@ -338,9 +400,10 @@ function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, set
   );
 }
 
-function AdminScreen({ user, rows, setRows, monthlyFee, setMonthlyFee, paymentLink, setPaymentLink, onLogout, onDebtors }) {
+function AdminScreen({ user, rows, setRows, monthlyFee, setMonthlyFee, paymentLink, setPaymentLink, onLogout, onDebtors, monthsList, setMonthsList, adminNotifications }) {
   const s = styles();
   const debtors = useMemo(() => rows.filter((row) => row.status !== 'Pago'), [rows]);
+  const [newMonthName, setNewMonthName] = useState('');
 
   const updateRowStatus = (index, nextStatus) => {
     setRows((prev) =>
@@ -352,9 +415,30 @@ function AdminScreen({ user, rows, setRows, monthlyFee, setMonthlyFee, paymentLi
     );
   };
 
+  const addMonth = () => {
+    const clean = newMonthName.trim();
+    if (!clean) return;
+    if (monthsList.includes(clean)) return;
+    setMonthsList((prev) => prev.concat(clean));
+    setNewMonthName('');
+  };
+
+  const removeMonth = (monthToRemove) => {
+    if (monthsList.length <= 1) return;
+    setMonthsList((prev) => prev.filter((m) => m !== monthToRemove));
+  };
+
   const exportCsv = () => {
-    const headers = ['Jugador', 'Estado', 'Mes', 'Cuota', 'Deuda', 'MSM'];
-    const csvRows = rows.map((row) => [row.player, row.status, row.month, row.cuota, row.deuda, row.msm ? 'Sí' : 'No']);
+    const headers = ['Jugador', 'Estado', 'Mes', 'Cuota', 'Deuda', 'MSM', 'WhatsApp'];
+    const csvRows = rows.map((row) => [
+      row.player,
+      row.status,
+      row.month,
+      row.cuota,
+      row.deuda,
+      row.msm ? 'Sí' : 'No',
+      displayUruguayPhone(row.phone || '')
+    ]);
     downloadCsv('informe_spartans.csv', headers, csvRows);
   };
 
@@ -373,8 +457,37 @@ function AdminScreen({ user, rows, setRows, monthlyFee, setMonthlyFee, paymentLi
             <input type="number" value={monthlyFee} onChange={(e) => setMonthlyFee(Number(e.target.value) || 0)} style={s.smallInput} />
             <div style={{ fontSize: 14, fontWeight: 800, color: '#d4d4d8' }}>Link de pago global</div>
             <input value={paymentLink} onChange={(e) => setPaymentLink(e.target.value)} placeholder="https://..." style={s.smallInput} />
-            <div style={{ fontSize: 12, color: '#a1a1aa' }}>Solo el administrador puede modificar el importe y el link de pago para todos los jugadores.</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#d4d4d8' }}>Agregar mes</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
+              <input value={newMonthName} onChange={(e) => setNewMonthName(e.target.value)} placeholder="Ej: Septiembre" style={s.smallInput} />
+              <button onClick={addMonth} style={s.btnWhite}>Agregar</button>
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#d4d4d8' }}>Meses activos</div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {monthsList.map((monthItem, idx) => (
+                <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center' }}>
+                  <div style={{ background: '#27272a', borderRadius: 12, padding: '10px 12px', fontWeight: 700 }}>{monthItem}</div>
+                  <button onClick={() => removeMonth(monthItem)} style={s.btnWhite}>Quitar</button>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: '#a1a1aa' }}>Solo el administrador puede modificar el importe, el link y la lista de meses para todos los jugadores.</div>
           </div>
+        </div>
+
+        <div style={{ ...s.card, marginTop: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#d4d4d8', marginBottom: 10 }}>Avisos nuevos</div>
+          {adminNotifications.length > 0 ? (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {adminNotifications.map((note, noteIdx) => (
+                <div key={noteIdx} style={{ background: '#27272a', borderRadius: 12, padding: '10px 12px', fontSize: 14, fontWeight: 700 }}>
+                  {note}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: '#a1a1aa' }}>Sin avisos nuevos</div>
+          )}
         </div>
 
         <div style={{ ...s.row2, marginTop: 16 }}>
@@ -411,7 +524,7 @@ function AdminScreen({ user, rows, setRows, monthlyFee, setMonthlyFee, paymentLi
                 <div style={{ gridColumn: '1 / -1' }}>
                   <div style={{ fontSize: 12, color: '#f4f4f5' }}>WhatsApp</div>
                   <div style={{ marginTop: 4, height: 40, display: 'flex', alignItems: 'center', padding: '0 12px', borderRadius: 12, background: '#27272a', color: '#fff', fontSize: 14, fontWeight: 700 }}>
-                    {row.phone || 'No cargado'}
+                    {displayUruguayPhone(row.phone || '') || 'No cargado'}
                   </div>
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}>
@@ -536,21 +649,29 @@ export default function SpartansPagosApp() {
   const [screen, setScreen] = useState('cover');
   const [monthlyFee, setMonthlyFee] = useState(1300);
   const [paymentLink, setPaymentLink] = useState('https://www.mercadopago.com.uy/');
-  const [players] = useState(() => createPlayers(1300));
-  const [rows, setRows] = useState(() => createAdminRows(1300));
+  const [monthsList, setMonthsList] = useState(['Mayo', 'Junio', 'Julio', 'Agosto']);
+  const [adminNotifications, setAdminNotifications] = useState([]);
+  const [players] = useState(() => createPlayers(1300, ['Mayo', 'Junio', 'Julio', 'Agosto']));
+  const [rows, setRows] = useState(() => createAdminRows(1300, ['Mayo', 'Junio', 'Julio', 'Agosto']));
   const [sessionUser, setSessionUser] = useState(null);
 
   useEffect(() => {
-    setRows((prev) =>
-      prev.map((row) => ({
+    setRows((prev) => {
+      const monthFallback = monthsList[0] || 'Mes';
+      return prev.map((row) => ({
         ...row,
+        month: monthsList.includes(row.month) ? row.month : monthFallback,
         cuota: monthlyFee,
         deuda: row.status === 'Pago' ? 0 : monthlyFee,
-      }))
-    );
-  }, [monthlyFee]);
+      }));
+    });
+  }, [monthlyFee, monthsList]);
 
   const allUsers = useMemo(() => [ADMIN_USER, ...players], [players]);
+
+  const notifyAdmin = (message) => {
+    setAdminNotifications((prev) => [message, ...prev]);
+  };
 
   const logout = () => {
     setSessionUser(null);
@@ -561,7 +682,38 @@ export default function SpartansPagosApp() {
   if (screen === 'login') return <LoginScreen allUsers={allUsers} onLogin={(user) => { setSessionUser(user); setScreen(user.role === 'admin' ? 'admin' : 'player'); }} onTeamInfo={() => setScreen('teamInfo')} />;
   if (screen === 'teamInfo') return <TeamInfoScreen onBack={() => setScreen(sessionUser ? (sessionUser.role === 'admin' ? 'admin' : 'player') : 'login')} />;
   if (screen === 'debtors') return <DebtorsScreen rows={rows} setRows={setRows} onBack={() => setScreen('admin')} />;
-  if (screen === 'player' && sessionUser) return <PlayerScreen user={sessionUser} monthlyFee={monthlyFee} paymentLink={paymentLink} onLogout={logout} onTeamInfo={() => setScreen('teamInfo')} setSessionUser={setSessionUser} setRows={setRows} />;
-  if (screen === 'admin' && sessionUser) return <AdminScreen user={sessionUser} rows={rows} setRows={setRows} monthlyFee={monthlyFee} setMonthlyFee={setMonthlyFee} paymentLink={paymentLink} setPaymentLink={setPaymentLink} onLogout={logout} onDebtors={() => setScreen('debtors')} />;
+  if (screen === 'player' && sessionUser) {
+    return (
+      <PlayerScreen
+        user={sessionUser}
+        monthlyFee={monthlyFee}
+        paymentLink={paymentLink}
+        onLogout={logout}
+        onTeamInfo={() => setScreen('teamInfo')}
+        setSessionUser={setSessionUser}
+        setRows={setRows}
+        notifyAdmin={notifyAdmin}
+        monthsList={monthsList}
+      />
+    );
+  }
+  if (screen === 'admin' && sessionUser) {
+    return (
+      <AdminScreen
+        user={sessionUser}
+        rows={rows}
+        setRows={setRows}
+        monthlyFee={monthlyFee}
+        setMonthlyFee={setMonthlyFee}
+        paymentLink={paymentLink}
+        setPaymentLink={setPaymentLink}
+        onLogout={logout}
+        onDebtors={() => setScreen('debtors')}
+        monthsList={monthsList}
+        setMonthsList={setMonthsList}
+        adminNotifications={adminNotifications}
+      />
+    );
+  }
   return <CoverScreen onStart={() => setScreen('login')} />;
 }
