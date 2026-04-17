@@ -146,7 +146,11 @@ function LoginScreen({ allUsers, onLogin, onTeamInfo }) {
   const [error, setError] = useState('');
 
   const submit = () => {
-    const found = allUsers.find((u) => u.username === username.trim() && u.password === password.trim());
+    const found = allUsers.find(
+      (u) =>
+        u.username === username.trim() &&
+        u.password === password.trim()
+    );
     if (!found) {
       setError('Usuario o contraseña incorrectos.');
       return;
@@ -154,6 +158,79 @@ function LoginScreen({ allUsers, onLogin, onTeamInfo }) {
     setError('');
     onLogin(found);
   };
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        background: '#b32025',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 420,
+          minHeight: '100vh',
+          backgroundImage: `url(${LOGIN_IMAGE})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
+          padding: '40px 24px',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div style={{ display: 'grid', gap: 12 }}>
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="User - Name"
+            style={s.input}
+          />
+
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            type="password"
+            placeholder="Password"
+            style={s.input}
+          />
+
+          {error && (
+            <div style={{ textAlign: 'center', fontSize: 14 }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={submit}
+            style={{
+              ...s.btnWhite,
+              background: '#111827',
+              color: '#fff',
+            }}
+          >
+            Enter...
+          </button>
+
+          <button
+            onClick={onTeamInfo}
+            style={{
+              ...s.btnWhite,
+              fontSize: 14,
+            }}
+          >
+            Gastos del equipo
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden', background: '#b32025', color: '#fff', fontFamily: 'Arial, sans-serif' }}>
