@@ -4,8 +4,6 @@ const START_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v17763678
 const LOGIN_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776367812/Login_lbygxb.jpg';
 const TEAM_INFO_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776367821/Gastos_del_Equipo_fitnjt.jpg';
 const ICON_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776368629/User_-_Name_cnpjeb.png';
-const PLAYER_AVATAR = 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=800&auto=format&fit=crop';
-const ADMIN_AVATAR = 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=800&auto=format&fit=crop';
 
 const PLAYER_ACCOUNTS = [
   { number: 6, name: 'Facundo García', username: 'garcia', password: 'garcia', phone: '' },
@@ -39,7 +37,6 @@ const ADMIN_USER = {
   role: 'admin',
   name: 'Administrador',
   position: 'Control general',
-  avatar: ADMIN_AVATAR,
 };
 
 function createMonths(monthlyFee) {
@@ -58,8 +55,6 @@ function createPlayers(monthlyFee) {
     role: 'jugador',
     name: player.name,
     number: player.number,
-    position: '#' + String(player.number),
-    avatar: PLAYER_AVATAR,
     phone: player.phone,
     months: createMonths(monthlyFee),
   }));
@@ -156,16 +151,43 @@ function LoginScreen({ allUsers, onLogin, onTeamInfo }) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative', overflow: 'hidden', background: '#b32025', color: '#fff', fontFamily: 'Arial, sans-serif' }}>
-      <img src={LOGIN_IMAGE} alt="Login" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 420, margin: '0 auto', minHeight: '100vh', padding: '27rem 32px 32px' }}>
-        <div style={{ display: 'grid', gap: 16 }}>
-          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="User - Name" style={s.input} />
-          <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Password" style={s.input} />
+    <div
+      style={{
+        minHeight: '100vh',
+        background: '#b32025',
+        color: '#fff',
+        fontFamily: 'Arial, sans-serif',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 0,
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 420,
+          minHeight: '100vh',
+          position: 'relative',
+          backgroundImage: `url(${LOGIN_IMAGE})`,
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center top',
+          backgroundSize: 'cover',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-start',
+          padding: '52vh 28px 32px',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div style={{ display: 'grid', gap: 14 }}>
+          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="User - Name" style={{ ...s.input, height: 52, fontSize: 16 }} />
+          <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Password" style={{ ...s.input, height: 52, fontSize: 16 }} />
           {error ? <div style={{ textAlign: 'center', fontSize: 14, fontWeight: 700 }}>{error}</div> : null}
-          <button onClick={submit} style={{ ...s.btnWhite, background: '#000', color: '#fff', border: '3px solid #111', fontSize: 22 }}>Enter...</button>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 24 }}>
-            <button onClick={onTeamInfo} style={{ ...s.btnWhite, border: '3px solid #111', padding: '10px 18px' }}>Gastos del equipo</button>
+          <button onClick={submit} style={{ ...s.btnWhite, background: '#111827', color: '#fff', border: '3px solid #111', fontSize: 20, padding: '14px 16px' }}>Enter...</button>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 14 }}>
+            <button onClick={onTeamInfo} style={{ ...s.btnWhite, border: '3px solid #111', padding: '10px 18px', fontSize: 14 }}>Gastos del equipo</button>
           </div>
         </div>
       </div>
@@ -184,21 +206,13 @@ function TeamInfoScreen({ onBack }) {
   );
 }
 
-function Logo() {
-  return <img src={ICON_IMAGE} alt="Icono" style={{ width: 56, height: 56, objectFit: 'contain' }} />;
-}
-
-function ProfileCard({ name, subtitle, avatar, onAvatarChange }) {
+function ProfileCard({ name, subtitle }) {
   const s = styles();
   return (
     <div style={s.card}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ position: 'relative', width: 128, height: 128, margin: '0 auto 16px' }}>
-          <img src={avatar} alt={name} style={{ width: 128, height: 128, borderRadius: '50%', border: '4px solid #b32025', objectFit: 'cover' }} />
-          <label style={{ position: 'absolute', right: -4, bottom: 4, width: 40, height: 40, borderRadius: '50%', border: '2px solid #fff', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18 }}>
-            📷
-            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={onAvatarChange} />
-          </label>
+        <div style={{ marginBottom: 16 }}>
+          <img src={ICON_IMAGE} alt="Icono" style={{ width: 170, height: 170, objectFit: 'contain', display: 'block', margin: '0 auto' }} />
         </div>
         <div style={{ fontSize: 32, fontWeight: 900, color: '#fff', lineHeight: 1.1 }}>{name}</div>
         <div style={{ fontSize: 22, fontWeight: 800, color: '#d4d4d8' }}>{subtitle}</div>
@@ -210,7 +224,6 @@ function ProfileCard({ name, subtitle, avatar, onAvatarChange }) {
 function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, setSessionUser, setRows }) {
   const s = styles();
   const [months, setMonths] = useState(user.months);
-  const [avatar, setAvatar] = useState(user.avatar);
   const [phone, setPhone] = useState(user.phone || '');
 
   useEffect(() => {
@@ -222,12 +235,6 @@ function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, set
       }))
     );
   }, [monthlyFee]);
-
-  const updateAvatar = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    setAvatar(URL.createObjectURL(file));
-  };
 
   const uploadProof = (monthId, files) => {
     const fileList = Array.from(files || []);
@@ -274,11 +281,11 @@ function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, set
     <div style={s.shell}>
       <div style={s.wrap}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <Logo />
+          <img src={ICON_IMAGE} alt="Icono" style={{ width: 56, height: 56, objectFit: 'contain' }} />
           <button onClick={onTeamInfo} style={{ ...s.btnDark, padding: '8px 14px' }}>ℹ️ Gastos</button>
         </div>
 
-        <ProfileCard name={user.name} subtitle={'#' + String(user.number)} avatar={avatar} onAvatarChange={updateAvatar} />
+        <ProfileCard name={user.name} subtitle={'#' + String(user.number)} />
 
         <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
           <div>
@@ -333,14 +340,7 @@ function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, set
 
 function AdminScreen({ user, rows, setRows, monthlyFee, setMonthlyFee, paymentLink, setPaymentLink, onLogout, onDebtors }) {
   const s = styles();
-  const [avatar, setAvatar] = useState(user.avatar);
   const debtors = useMemo(() => rows.filter((row) => row.status !== 'Pago'), [rows]);
-
-  const updateAvatar = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    setAvatar(URL.createObjectURL(file));
-  };
 
   const updateRowStatus = (index, nextStatus) => {
     setRows((prev) =>
@@ -362,10 +362,10 @@ function AdminScreen({ user, rows, setRows, monthlyFee, setMonthlyFee, paymentLi
     <div style={s.shell}>
       <div style={s.wrap}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <Logo />
+          <img src={ICON_IMAGE} alt="Icono" style={{ width: 56, height: 56, objectFit: 'contain' }} />
         </div>
 
-        <ProfileCard name={user.name} subtitle={user.position} avatar={avatar} onAvatarChange={updateAvatar} />
+        <ProfileCard name={user.name} subtitle={user.position} />
 
         <div style={{ ...s.card, marginTop: 16 }}>
           <div style={{ display: 'grid', gap: 12 }}>
@@ -488,7 +488,7 @@ function DebtorsScreen({ rows, setRows, onBack }) {
     <div style={s.shell}>
       <div style={s.wrap}>
         <div style={{ display: 'grid', gap: 16 }}>
-          <Logo />
+          <img src={ICON_IMAGE} alt="Icono" style={{ width: 56, height: 56, objectFit: 'contain' }} />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <button onClick={onBack} style={s.btnDark}>← Volver</button>
             <button onClick={sendWhatsAppMessages} style={{ ...s.btnWhite, flex: 1 }}>💬 Enviar mensaje a deudores</button>
