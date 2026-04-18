@@ -777,3 +777,98 @@ export default function SpartansPagosApp() {
   }
   return <CoverScreen onStart={() => setScreen('login')} />;
 }
+// 👇 SOLO PEGA ESTO ENTERO, NO TOQUES NADA
+
+import React, { useEffect, useMemo, useState } from 'react'
+import { supabase } from './lib/supabase'
+
+const ICON_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776368629/User_-_Name_cnpjeb.png'
+
+function normalizeUruguayPhone(value) {
+  const digits = String(value || '').replace(/\D/g, '')
+  if (!digits) return ''
+  if (digits.startsWith('598')) return digits
+  if (digits.startsWith('0')) return '598' + digits.slice(1)
+  if (digits.startsWith('9') && digits.length === 8) return '598' + digits
+  return digits
+}
+
+function displayUruguayPhone(value) {
+  if (!value) return ''
+  const digits = String(value).replace(/\D/g, '')
+  if (digits.startsWith('598')) return '0' + digits.slice(3)
+  return value
+}
+
+export default function App() {
+  const [players, setPlayers] = useState([])
+  const [user, setUser] = useState(null)
+  const [phone, setPhone] = useState('')
+
+  // 🔥 Cargar jugadores
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase.from('players').select('*')
+      if (data) setPlayers(data)
+    }
+    load()
+  }, [])
+
+  const login = (username, password) => {
+    const found = players.find(
+      (p) => p.username === username && p.password === password
+    )
+    if (found) {
+      setUser(found)
+      setPhone(displayUruguayPhone(found.phone))
+    }
+  }
+
+  // 🔥 GUARDAR TELÉFONO EN SUPABASE
+  const savePhone = async () => {
+    const normalized = normalizeUruguayPhone(phone)
+
+    const { error } = await supabase
+      .from('players')
+      .update({ phone: normalized })
+      .eq('username', user.username)
+
+    if (error) {
+      alert('Error guardando')
+      return
+    }
+
+    setUser({ ...user, phone: normalized })
+    setPhone(displayUruguayPhone(normalized))
+    alert('Guardado correctamente')
+  }
+
+  if (!user) {
+    return (
+      <div style={{ padding: 40 }}>
+        <h2>Login</h2>
+        <button onClick={() => login('escobar', 'escobar')}>
+          Entrar como Escobar
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ padding: 40 }}>
+      <img src={ICON_IMAGE} width={120} />
+      <h2>{user.name}</h2>
+
+      <input
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder="091234567"
+      />
+
+      <br />
+      <br />
+
+      <button onClick={savePhone}>Guardar WhatsApp</button>
+    </div>
+  )
+}
