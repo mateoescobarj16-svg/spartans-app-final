@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { supabase } from './lib/supabase';
 
 const START_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776367813/Inicio_hrybba.jpg';
 const LOGIN_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776367812/Login_lbygxb.jpg';
@@ -139,17 +140,7 @@ function CoverScreen({ onStart }) {
   const s = styles();
   return (
     <div style={{ ...s.shell, position: 'relative', overflow: 'hidden' }}>
-      <div
-        style={{
-          position: 'relative',
-          maxWidth: 420,
-          margin: '0 auto',
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
+      <div style={{ position: 'relative', maxWidth: 420, margin: '0 auto', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <img src={START_IMAGE} alt="Inicio" style={{ width: '100%', maxHeight: '100vh', objectFit: 'contain' }} />
         <button
           onClick={onStart}
@@ -661,9 +652,57 @@ export default function SpartansPagosApp() {
   const [paymentLink, setPaymentLink] = useState('https://www.mercadopago.com.uy/');
   const [monthsList, setMonthsList] = useState(['Mayo', 'Junio', 'Julio', 'Agosto']);
   const [adminNotifications, setAdminNotifications] = useState([]);
-  const [players] = useState(() => createPlayers(1300, ['Mayo', 'Junio', 'Julio', 'Agosto']));
+  const [players, setPlayers] = useState(() => createPlayers(1300, ['Mayo', 'Junio', 'Julio', 'Agosto']));
   const [rows, setRows] = useState(() => createAdminRows(1300, ['Mayo', 'Junio', 'Julio', 'Agosto']));
   const [sessionUser, setSessionUser] = useState(null);
+
+  useEffect(() => {
+    const loadPlayersFromSupabase = async () => {
+      const { data, error } = await supabase
+        .from('players')
+        .select('*')
+        .eq('is_admin', false)
+        .order('number', { ascending: true });
+
+      if (error || !data) {
+        return;
+      }
+
+      const mappedPlayers = data.map((player) => ({
+        username: player.username,
+        password: player.password,
+        role: 'jugador',
+        name: player.name,
+        number: player.number,
+        phone: player.phone || '',
+        months: createMonths(monthlyFee, monthsList),
+      }));
+
+      setPlayers(mappedPlayers);
+
+      setRows((prevRows) => {
+        const proofMap = new Map(prevRows.map((row) => [row.player, row]));
+        return mappedPlayers.map((player) => {
+          const key = '#' + String(player.number) + ' ' + player.name;
+          const previous = proofMap.get(key);
+          return {
+            player: key,
+            status: previous?.status || 'No pagó',
+            month: previous?.month || monthsList[0],
+            cuota: monthlyFee,
+            deuda: previous?.status === 'Pago' ? 0 : monthlyFee,
+            msm: previous?.msm || false,
+            lastMessageDate: previous?.lastMessageDate || '',
+            phone: player.phone || '',
+            proofs: previous?.proofs || [],
+            notifications: previous?.notifications || [],
+          };
+        });
+      });
+    };
+
+    loadPlayersFromSupabase();
+  }, [monthlyFee, monthsList]);
 
   useEffect(() => {
     setRows((prev) => {
@@ -689,7 +728,18 @@ export default function SpartansPagosApp() {
   };
 
   if (screen === 'cover') return <CoverScreen onStart={() => setScreen('login')} />;
-  if (screen === 'login') return <LoginScreen allUsers={allUsers} onLogin={(user) => { setSessionUser(user); setScreen(user.role === 'admin' ? 'admin' : 'player'); }} onTeamInfo={() => setScreen('teamInfo')} />;
+  if (screen === 'login') {
+    return (
+      <LoginScreen
+        allUsers={allUsers}
+        onLogin={(user) => {
+          setSessionUser(user);
+          setScreen(user.role === 'admin' ? 'admin' : 'player');
+        }}
+        onTeamInfo={() => setScreen('teamInfo')}
+      />
+    );
+  }
   if (screen === 'teamInfo') return <TeamInfoScreen onBack={() => setScreen(sessionUser ? (sessionUser.role === 'admin' ? 'admin' : 'player') : 'login')} />;
   if (screen === 'debtors') return <DebtorsScreen rows={rows} setRows={setRows} onBack={() => setScreen('admin')} />;
   if (screen === 'player' && sessionUser) {
