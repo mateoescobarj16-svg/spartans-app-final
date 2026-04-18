@@ -82,23 +82,17 @@ function createAdminRows(monthlyFee, customMonths) {
 
 function normalizeUruguayPhone(value) {
   const digits = String(value || '').replace(/\D/g, '');
-
   if (!digits) return '';
   if (digits.startsWith('598')) return digits;
   if (digits.startsWith('0')) return '598' + digits.slice(1);
   if (digits.startsWith('9') && digits.length === 8) return '598' + digits;
-
   return digits;
 }
 
 function displayUruguayPhone(value) {
   if (!value) return '';
   const digits = String(value).replace(/\D/g, '');
-
-  if (digits.startsWith('598')) {
-    return '0' + digits.slice(3);
-  }
-
+  if (digits.startsWith('598')) return '0' + digits.slice(3);
   return value;
 }
 
@@ -121,7 +115,7 @@ function styles() {
     shell: { minHeight: '100vh', background: '#000', color: '#fff', fontFamily: 'Arial, sans-serif' },
     wrap: { maxWidth: 420, margin: '0 auto', minHeight: '100vh', padding: 16, boxSizing: 'border-box' },
     card: { background: '#111', border: '1px solid #2a2a2a', borderRadius: 22, padding: 16, boxSizing: 'border-box' },
-    redCard: { background: '#b32025', border: '1px solid #7d1116', borderRadius: 22, padding: 16, boxSizing: 'border-box', color: '#fff' },
+    redCard: { background: '#b32025', border: '1px solid '#7d1116', borderRadius: 22, padding: 16, boxSizing: 'border-box', color: '#fff' },
     btnWhite: { border: 'none', borderRadius: 999, background: '#fff', color: '#000', fontWeight: 800, padding: '12px 16px', cursor: 'pointer' },
     btnDark: { border: '2px solid #fff', borderRadius: 999, background: 'transparent', color: '#fff', fontWeight: 800, padding: '12px 16px', cursor: 'pointer' },
     input: { width: '100%', boxSizing: 'border-box', height: 44, borderRadius: 999, border: '3px solid #111', background: '#fff', color: '#000', fontWeight: 800, textAlign: 'center', padding: '0 16px' },
@@ -253,6 +247,7 @@ function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, set
   const s = styles();
   const [months, setMonths] = useState(user.months);
   const [phone, setPhone] = useState(displayUruguayPhone(user.phone || ''));
+  const [savingPhone, setSavingPhone] = useState(false);
 
   useEffect(() => {
     setMonths((prev) => {
@@ -317,8 +312,21 @@ function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, set
     }
   };
 
-  const savePhone = () => {
+  const savePhone = async () => {
     const normalizedPhone = normalizeUruguayPhone(phone);
+    setSavingPhone(true);
+
+    const { error } = await supabase
+      .from('players')
+      .update({ phone: normalizedPhone })
+      .eq('username', user.username);
+
+    setSavingPhone(false);
+
+    if (error) {
+      alert('No se pudo guardar el WhatsApp.');
+      return;
+    }
 
     setSessionUser((prev) => (prev ? { ...prev, phone: normalizedPhone } : prev));
 
@@ -330,6 +338,7 @@ function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, set
     );
 
     setPhone(displayUruguayPhone(normalizedPhone));
+    alert('WhatsApp guardado correctamente.');
   };
 
   return (
@@ -356,7 +365,9 @@ function PlayerScreen({ user, monthlyFee, paymentLink, onLogout, onTeamInfo, set
             />
           </div>
           <div style={s.row2}>
-            <button onClick={savePhone} style={s.btnWhite}>Guardar</button>
+            <button onClick={savePhone} style={s.btnWhite} disabled={savingPhone}>
+              {savingPhone ? 'Guardando...' : 'Guardar'}
+            </button>
             <button onClick={onLogout} style={s.btnDark}>Salir</button>
           </div>
         </div>
@@ -664,9 +675,7 @@ export default function SpartansPagosApp() {
         .eq('is_admin', false)
         .order('number', { ascending: true });
 
-      if (error || !data) {
-        return;
-      }
+      if (error || !data) return;
 
       const mappedPlayers = data.map((player) => ({
         username: player.username,
@@ -681,10 +690,10 @@ export default function SpartansPagosApp() {
       setPlayers(mappedPlayers);
 
       setRows((prevRows) => {
-        const proofMap = new Map(prevRows.map((row) => [row.player, row]));
+        const previousMap = new Map(prevRows.map((row) => [row.player, row]));
         return mappedPlayers.map((player) => {
           const key = '#' + String(player.number) + ' ' + player.name;
-          const previous = proofMap.get(key);
+          const previous = previousMap.get(key);
           return {
             player: key,
             status: previous?.status || 'No pagó',
@@ -776,99 +785,4 @@ export default function SpartansPagosApp() {
     );
   }
   return <CoverScreen onStart={() => setScreen('login')} />;
-}
-// 👇 SOLO PEGA ESTO ENTERO, NO TOQUES NADA
-
-import React, { useEffect, useMemo, useState } from 'react'
-import { supabase } from './lib/supabase'
-
-const ICON_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776368629/User_-_Name_cnpjeb.png'
-
-function normalizeUruguayPhone(value) {
-  const digits = String(value || '').replace(/\D/g, '')
-  if (!digits) return ''
-  if (digits.startsWith('598')) return digits
-  if (digits.startsWith('0')) return '598' + digits.slice(1)
-  if (digits.startsWith('9') && digits.length === 8) return '598' + digits
-  return digits
-}
-
-function displayUruguayPhone(value) {
-  if (!value) return ''
-  const digits = String(value).replace(/\D/g, '')
-  if (digits.startsWith('598')) return '0' + digits.slice(3)
-  return value
-}
-
-export default function App() {
-  const [players, setPlayers] = useState([])
-  const [user, setUser] = useState(null)
-  const [phone, setPhone] = useState('')
-
-  // 🔥 Cargar jugadores
-  useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase.from('players').select('*')
-      if (data) setPlayers(data)
-    }
-    load()
-  }, [])
-
-  const login = (username, password) => {
-    const found = players.find(
-      (p) => p.username === username && p.password === password
-    )
-    if (found) {
-      setUser(found)
-      setPhone(displayUruguayPhone(found.phone))
-    }
-  }
-
-  // 🔥 GUARDAR TELÉFONO EN SUPABASE
-  const savePhone = async () => {
-    const normalized = normalizeUruguayPhone(phone)
-
-    const { error } = await supabase
-      .from('players')
-      .update({ phone: normalized })
-      .eq('username', user.username)
-
-    if (error) {
-      alert('Error guardando')
-      return
-    }
-
-    setUser({ ...user, phone: normalized })
-    setPhone(displayUruguayPhone(normalized))
-    alert('Guardado correctamente')
-  }
-
-  if (!user) {
-    return (
-      <div style={{ padding: 40 }}>
-        <h2>Login</h2>
-        <button onClick={() => login('escobar', 'escobar')}>
-          Entrar como Escobar
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ padding: 40 }}>
-      <img src={ICON_IMAGE} width={120} />
-      <h2>{user.name}</h2>
-
-      <input
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        placeholder="091234567"
-      />
-
-      <br />
-      <br />
-
-      <button onClick={savePhone}>Guardar WhatsApp</button>
-    </div>
-  )
 }
