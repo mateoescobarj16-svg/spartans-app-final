@@ -1,3 +1,4 @@
+import { supabase } from './lib/supabase'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -11,7 +12,7 @@ const LOGIN_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v17763678
 const TEAM_INFO_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776457249/Gastos_del_Equipo_1_ym60z4.jpg';
 const ICON_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776368629/User_-_Name_cnpjeb.png';
 
-const PLAYER_ACCOUNTS = [
+const [players, setPlayers] = useState([
   { number: 6, name: 'Facundo García', username: 'garcia', password: 'garcia', phone: '' },
   { number: 7, name: 'Rodrigo Sabella', username: 'sabella', password: 'sabella', phone: '' },
   { number: 8, name: 'Alberto Mendoza', username: 'mendoza', password: 'mendoza', phone: '' },
@@ -410,6 +411,35 @@ function AdminScreen({ user, rows, setRows, monthlyFee, setMonthlyFee, paymentLi
   const s = styles();
   const debtors = useMemo(() => rows.filter((row) => row.status !== 'Pago'), [rows]);
   const [newMonthName, setNewMonthName] = useState('');
+  useEffect(() => {
+  const loadPlayers = async () => {
+    const { data, error } = await supabase
+      .from('players')
+      .select('*')
+      .eq('is_admin', false)
+      .order('number', { ascending: true })
+
+    if (error) {
+      console.error('Error cargando jugadores:', error)
+      return
+    }
+
+    // Adaptamos al formato que ya usa tu app
+    const mapped = data.map((p) => ({
+      username: p.username,
+      password: p.password,
+      role: 'jugador',
+      name: p.name,
+      number: p.number,
+      phone: p.phone || '',
+      months: createMonths(monthlyFee, monthsList),
+    }))
+
+    setPlayers(mapped)
+  }
+
+  loadPlayers()
+}, [monthlyFee, monthsList])
 
   const updateRowStatus = (index, nextStatus) => {
     setRows((prev) =>
