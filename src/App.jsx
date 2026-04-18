@@ -1,10 +1,3 @@
-import { supabase } from './lib/supabase'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-)
 import React, { useEffect, useMemo, useState } from 'react';
 
 const START_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776367813/Inicio_hrybba.jpg';
@@ -12,7 +5,7 @@ const LOGIN_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v17763678
 const TEAM_INFO_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776457249/Gastos_del_Equipo_1_ym60z4.jpg';
 const ICON_IMAGE = 'https://res.cloudinary.com/dxdhg54zd/image/upload/v1776368629/User_-_Name_cnpjeb.png';
 
-const [players, setPlayers] = useState([
+const PLAYER_ACCOUNTS = [
   { number: 6, name: 'Facundo García', username: 'garcia', password: 'garcia', phone: '' },
   { number: 7, name: 'Rodrigo Sabella', username: 'sabella', password: 'sabella', phone: '' },
   { number: 8, name: 'Alberto Mendoza', username: 'mendoza', password: 'mendoza', phone: '' },
@@ -146,7 +139,17 @@ function CoverScreen({ onStart }) {
   const s = styles();
   return (
     <div style={{ ...s.shell, position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'relative', maxWidth: 420, margin: '0 auto', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        style={{
+          position: 'relative',
+          maxWidth: 420,
+          margin: '0 auto',
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <img src={START_IMAGE} alt="Inicio" style={{ width: '100%', maxHeight: '100vh', objectFit: 'contain' }} />
         <button
           onClick={onStart}
@@ -411,35 +414,6 @@ function AdminScreen({ user, rows, setRows, monthlyFee, setMonthlyFee, paymentLi
   const s = styles();
   const debtors = useMemo(() => rows.filter((row) => row.status !== 'Pago'), [rows]);
   const [newMonthName, setNewMonthName] = useState('');
-  useEffect(() => {
-  const loadPlayers = async () => {
-    const { data, error } = await supabase
-      .from('players')
-      .select('*')
-      .eq('is_admin', false)
-      .order('number', { ascending: true })
-
-    if (error) {
-      console.error('Error cargando jugadores:', error)
-      return
-    }
-
-    // Adaptamos al formato que ya usa tu app
-    const mapped = data.map((p) => ({
-      username: p.username,
-      password: p.password,
-      role: 'jugador',
-      name: p.name,
-      number: p.number,
-      phone: p.phone || '',
-      months: createMonths(monthlyFee, monthsList),
-    }))
-
-    setPlayers(mapped)
-  }
-
-  loadPlayers()
-}, [monthlyFee, monthsList])
 
   const updateRowStatus = (index, nextStatus) => {
     setRows((prev) =>
